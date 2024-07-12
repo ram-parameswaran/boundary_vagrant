@@ -4,10 +4,10 @@
 ### Define environment variables to pass on to provisioner
 
 # Define Boundary version
-BOUNDARY_VER = ENV['BOUNDARY_VER'] || "0.12.0"
+BOUNDARY_VER = ENV['BOUNDARY_VER'] || "0.16.2+ent"
 
 # Define Vault version
-VAULT_VER = ENV['VAULT_VER'] || "1.12.3"
+VAULT_VER = ENV['VAULT_VER'] || "1.17.2+ent"
 
 # Define Postgress version
 PG_VER = ENV['PG_VERSION'] || "15"
@@ -34,22 +34,44 @@ AWS_KEY_ID = ENV['AWS_KEY_ID'] || "*****************************"
 AWS_SECRET = ENV['AWS_SECRET'] || "*****************************"
 KMS_KEY_ID = ENV['KMS_KEY_ID'] || "*****************************"
 
+VAULT_NUM_INSTANCES = ENV['VAULT_NUM_INSTANCES'] || '0'
+POSTGRES_NUM_INSTANCES = ENV['POSTGRES_NUM_INSTANCES'] || '1'
+BOUNDARY_CONTROL_NUM_INSTANCES = ENV['BOUNDARY_CONTROL_NUM_INSTANCES'] || '1' 
+BOUNDARY_WORKER_NUM_INSTANCES = ENV['BOUNDARY_WORKER_NUM_INSTANCES'] || '0'
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/bionic64"
-  #config.vm.box_version = "20190411.0.0"
+  config.vm.box = "starboard/ubuntu-arm64-20.04.5"
+  config.vm.box_version = "20221120.20.40.0"
+  config.vm.box_download_insecure = true
+  #config.vm.network :private_network, auto_config: true
 
   # set up the 2 node target and Postgres servers
-  (1..2).each do |i|
+  (1..POSTGRES_NUM_INSTANCES.to_i).each do |i|
+    config.vm.provider "vmware_desktop" do |vmware|
+        vmware.allowlist_verified = true
+        vmware.vmx["ethernet0.pcislotnumber"] = "160"
+        vmware.ssh_info_public = true
+        vmware.linked_clone = false
+        vmware.gui = true
+        vmware.vmx["ethernet0.virtualdev"] = "vmxnet3"
+    end
     config.vm.define "target#{i}" do |v1|
       v1.vm.hostname = "t#{i}"
       v1.vm.network "private_network", ip: TARGET_SERVER_IP_PREFIX+"#{i}", netmask:"255.255.0.0", :name => 'vboxnet1', :adapter => 2
-      v1.vm.provision "shell", path: "scripts/setupTargetPostgresServer.sh", env: {'PG_VER' => PG_VER, 'HOST' => "v#{i}"}
+      v1.vm.provision "shell", path: "scripts/setupTargetPostgresServer.sh", env: {'PG_VER' => PG_VER, 'HOST' => "t#{i}"}
     end
   end
 
-  # set up the 2 node controle plain servers
-  (1..2).each do |i|
+  # set up the 2 node boundary control plane servers
+  (1..BOUNDARY_CONTROL_NUM_INSTANCES.to_i).each do |i|
+    config.vm.provider "vmware_desktop" do |vmware|
+        vmware.allowlist_verified = true
+        vmware.vmx["ethernet0.pcislotnumber"] = "160"
+        vmware.ssh_info_public = true
+        vmware.linked_clone = false
+        vmware.gui = true
+        vmware.vmx["ethernet0.virtualdev"] = "vmxnet3"
+    end
     config.vm.define "control#{i}" do |v1|
       v1.vm.hostname = "c#{i}"
       v1.vm.synced_folder ".", "/vagrant", owner: "vagrant", group: "vagrant"
@@ -58,8 +80,16 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  # set up the 2 worker DR servers
-  (1..2).each do |i|
+  # set up the 2 node boundary worker servers
+  (1..BOUNDARY_WORKER_NUM_INSTANCES.to_i).each do |i|
+    config.vm.provider "vmware_desktop" do |vmware|
+        vmware.allowlist_verified = true
+        vmware.vmx["ethernet0.pcislotnumber"] = "160"
+        vmware.ssh_info_public = true
+        vmware.linked_clone = false
+        vmware.gui = true
+        vmware.vmx["ethernet0.virtualdev"] = "vmxnet3"
+    end
     config.vm.define "worker#{i}" do |v1|
       v1.vm.hostname = "w#{i}"
       v1.vm.network "private_network", ip: BOUNDARY_WORKER_SERVER_IP_PREFIX+"#{i}", netmask:"255.255.0.0", :name => 'vboxnet1', :adapter => 2
@@ -68,10 +98,15 @@ Vagrant.configure("2") do |config|
   end
 
   # set up the 3 node Vault Primary HA servers
-  (1..3).each do |i|
-#    config.vm.provider :virtualbox do |vb|
-#      vb.customize ["setextradata", :id, "VBoxInternal/Devices/VMMDev/0/Config/GetHostTimeDisabled", 1]
-#    end
+  (1..VAULT_NUM_INSTANCES.to_i).each do |i|
+    config.vm.provider "vmware_desktop" do |vmware|
+        vmware.allowlist_verified = true
+        vmware.vmx["ethernet0.pcislotnumber"] = "160"
+        vmware.ssh_info_public = true
+        vmware.linked_clone = false
+        vmware.gui = true
+        vmware.vmx["ethernet0.virtualdev"] = "vmxnet3"
+    end
     config.vm.define "vault#{i}" do |v1|
       v1.vm.hostname = "v#{i}"
       v1.vm.synced_folder ".", "/vagrant", owner: "vagrant", group: "vagrant"
