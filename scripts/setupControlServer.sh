@@ -5,7 +5,7 @@ export PATH=$PATH:/usr/local/bin
 #installing boundary
 BOUNDARY_VERSION="$BOUNDARY_VER"
 echo "$BOUNDARY_VERSION"
-BOUNDARY_ARCHIVE=boundary_"$BOUNDARY_VERSION"_linux_amd64.zip
+BOUNDARY_ARCHIVE=boundary_"$BOUNDARY_VERSION"_linux_arm64.zip
 echo "*********************************"
 echo "$BOUNDARY_ARCHIVE"
 echo "$AWS_REGION"
@@ -20,12 +20,13 @@ apt-get update && apt-get -y install unzip curl gnupg software-properties-common
 echo "Installing boundary enterprise version ..."
 if [[ $(curl -s https://releases.hashicorp.com/boundary/ | grep "$BOUNDARY_VERSION") && $(ls /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary) ]]; then
   echo "Linking boundary build"
-  ln -s /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary /usr/local/bin/boundary;
+  #unzip /vagrant/boundary_builds/"$BOUNDARY_VERSION"/$BOUNDARY_VERSION_boundary_linux_arm64.zip
+  cp -r /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary /usr/local/bin/boundary;
 else
-  if curl -s -f -o /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary.zip --create-dirs https://releases.hashicorp.com/boundary/"$BOUNDARY_VERSION"/"$BOUNDARY_ARCHIVE"; then
-    unzip /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary.zip -d /vagrant/boundary_builds/"$BOUNDARY_VERSION"/
-    rm /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary.zip
-    ln -s /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary /usr/local/bin/boundary;
+  if curl -s -f -o /vagrant/boundary_builds/"$BOUNDARY_VERSION"/$BOUNDARY_VERSION_boundary_linux_arm64.zip --create-dirs https://releases.hashicorp.com/boundary/"$BOUNDARY_VERSION"/"$BOUNDARY_ARCHIVE"; then
+    unzip /vagrant/boundary_builds/"$BOUNDARY_VERSION"/$BOUNDARY_VERSION_boundary_linux_arm64.zip -d /vagrant/boundary_builds/"$BOUNDARY_VERSION"/
+    rm /vagrant/boundary_builds/"$BOUNDARY_VERSION"/$BOUNDARY_VERSION_boundary_linux_arm64.zip
+    cp -r /vagrant/boundary_builds/"$BOUNDARY_VERSION"/boundary /usr/local/bin/boundary;
   else
     echo "####### boundary version not found #########"
   fi
@@ -68,15 +69,16 @@ controller {
   # supply the url, or "env://" to name an environment variable
   # that contains the URL.
   database {
-      url = "postgresql://boundary:password@10.100.3.11:5432/boundary"
+      url = "postgresql://boundary:password@192.168.230.137:5432/boundary"
   }
+  license = "file:///vagrant/boundary.license"
 }
 
 listener "tcp" {
   address = "0.0.0.0"
   purpose = "api"
-  tls_cert_file = "/vagrant/certs/server-1.crt"
-  tls_key_file  = "/vagrant/certs/server-1.key"
+  #tls_cert_file = "/vagrant/certs/server-1.crt"
+  #tls_key_file  = "/vagrant/certs/server-1.key"
  
 
   # Uncomment to enable CORS for the Admin UI. Be sure to set the allowed origin(s)
@@ -97,38 +99,59 @@ listener "tcp" {
   # (eg: Load-Balancer) will connect on.
   address = "${IP_ADDRESS}"
   purpose = "ops"
-  tls_cert_file = "/vagrant/certs/server-1.crt"
-  tls_key_file  = "/vagrant/certs/server-1.key"
+  #tls_cert_file = "/vagrant/certs/server-1.crt"
+  #tls_key_file  = "/vagrant/certs/server-1.key"
 }
 
-kms "awskms" {
-  purpose    = "root"
-  region     = "$AWS_REGION"
-  access_key = "$AWS_KEY_ID"
-  secret_key = "$AWS_SECRET"
-  kms_key_id = "$KMS_KEY_ID"
+kms "aead" {
+	purpose = "root"
+	aead_type = "aes-gcm"
+	key = "sP1fnF5Xz85RrXyELHFeZg9Ad2qt4Z4bgNHVGtD6ung="
+	key_id = "global_root"
 }
+
+kms "aead" {
+	purpose = "worker-auth"
+	aead_type = "aes-gcm"
+	key = "8fZBjCUfN0TzjEGLQldGY4+iE9AkOvCfjh7+p0GtRBQ="
+	key_id = "global_worker-auth"
+}
+
+kms "aead" {
+	purpose = "recovery"
+	aead_type = "aes-gcm"
+	key = "8fZBjCUfN0TzjEGLQldGY4+iE9AkOvCfjh7+p0GtRBQ="
+	key_id = "global_recovery"
+}
+
+#kms "awskms" {
+#  purpose    = "root"
+#  region     = "$AWS_REGION"
+#  access_key = "$AWS_KEY_ID"
+#  secret_key = "$AWS_SECRET"
+#  kms_key_id = "$KMS_KEY_ID"
+#}
 
 # Worker authorization KMS
 # Use a production KMS such as AWS KMS for production installs
 # This key is the same key used in the worker configuration
-kms "awskms" {
-  purpose = "worker-auth"
-  region     = "$AWS_REGION"
-  access_key = "$AWS_KEY_ID"
-  secret_key = "$AWS_SECRET"
-  kms_key_id = "$KMS_KEY_ID"
-}
+#kms "awskms" {
+#  purpose = "worker-auth"
+#  region     = "$AWS_REGION"
+#  access_key = "$AWS_KEY_ID"
+#  secret_key = "$AWS_SECRET"
+#  kms_key_id = "$KMS_KEY_ID"
+#}
 
 # Recovery KMS block: configures the recovery key for Boundary
 # Use a production KMS such as AWS KMS for production installs
-kms "awskms" {
-  purpose = "recovery"
-  region     = "$AWS_REGION"
-  access_key = "$AWS_KEY_ID"
-  secret_key = "$AWS_SECRET"
-  kms_key_id = "$KMS_KEY_ID"
-}
+#kms "awskms" {
+#  purpose = "recovery"
+#  region     = "$AWS_REGION"
+#  access_key = "$AWS_KEY_ID"
+#  secret_key = "$AWS_SECRET"
+#  kms_key_id = "$KMS_KEY_ID"
+#}
 
 events {
   observations_enabled = true
@@ -157,13 +180,13 @@ User=boundary
 Group=boundary
 PIDFile=/var/run/boundary/boundary.pid
 ExecStart=/usr/local/bin/boundary server -config=/etc/boundary/boundary.hcl
-StandardOutput=file:/var/log/boundary/boundary.log
-StandardError=file:/var/log/boundary/boundary.log
+#StandardOutput=file:/var/log/boundary/boundary.log
+#StandardError=file:/var/log/boundary/boundary.log
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
 KillSignal=SIGINT
-Restart=on-failure
-RestartSec=42
+#Restart=on-failure
+#RestartSec=42
 TimeoutStopSec=30
 StartLimitInterval=60
 StartLimitBurst=3

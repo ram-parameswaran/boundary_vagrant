@@ -55,9 +55,15 @@ fi
 PG_REPO_APT_SOURCE=/etc/apt/sources.list.d/pgdg.list
 if [ ! -f "$PG_REPO_APT_SOURCE" ]
 then
-  # Add PG apt repo:
-  echo "deb http://apt.postgresql.org/pub/repos/apt/ bionic-pgdg main" > "$PG_REPO_APT_SOURCE"
+  echo "No Postgres apt repo information found"  
 
+  # Add PG apt repo:
+  echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > "$PG_REPO_APT_SOURCE"
+  
+  echo "Added Postgres apt repo information"
+
+  cat $PG_REPO_APT_SOURCE 
+ 
   # Add PGDG repo key:
   wget --quiet -O - https://apt.postgresql.org/pub/repos/apt/ACCC4CF8.asc | apt-key add -
 fi

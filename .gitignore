@@ -3,7 +3,7 @@
 vault_builds/
 boundary_builds/
 certs/*
-.license
+*.license
 .vagrant/
 .DS_store
 ubuntu-bionic-18.04-cloudimg-console.log
