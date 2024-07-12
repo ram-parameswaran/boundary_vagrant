@@ -37,7 +37,7 @@ KMS_KEY_ID = ENV['KMS_KEY_ID'] || "*****************************"
 VAULT_NUM_INSTANCES = ENV['VAULT_NUM_INSTANCES'] || '0'
 POSTGRES_NUM_INSTANCES = ENV['POSTGRES_NUM_INSTANCES'] || '1'
 BOUNDARY_CONTROL_NUM_INSTANCES = ENV['BOUNDARY_CONTROL_NUM_INSTANCES'] || '1' 
-BOUNDARY_WORKER_NUM_INSTANCES = ENV['BOUNDARY_WORKER_NUM_INSTANCES'] || '0'
+BOUNDARY_WORKER_NUM_INSTANCES = ENV['BOUNDARY_WORKER_NUM_INSTANCES'] || '1'
 
 Vagrant.configure("2") do |config|
   config.vm.box = "starboard/ubuntu-arm64-20.04.5"
@@ -76,7 +76,7 @@ Vagrant.configure("2") do |config|
       v1.vm.hostname = "c#{i}"
       v1.vm.synced_folder ".", "/vagrant", owner: "vagrant", group: "vagrant"
       v1.vm.network "private_network", ip: BOUNDARY_CONTROL_SERVER_IP_PREFIX+"#{i}", netmask:"255.0.0.0", :name => 'vboxnet1', :adapter => 2
-      v1.vm.provision "shell", path: "scripts/setupControlServer.sh", env: {'BOUNDARY_VER' => BOUNDARY_VER, 'HOST' => "v#{i}", 'AWS_REGION' => AWS_REGION, 'AWS_KEY_ID' => AWS_KEY_ID, 'AWS_SECRET' => AWS_SECRET, 'KMS_KEY_ID' => KMS_KEY_ID}
+      v1.vm.provision "shell", path: "scripts/setupControlServer.sh", env: {'BOUNDARY_VER' => BOUNDARY_VER, 'HOST' => "c#{i}", 'AWS_REGION' => AWS_REGION, 'AWS_KEY_ID' => AWS_KEY_ID, 'AWS_SECRET' => AWS_SECRET, 'KMS_KEY_ID' => KMS_KEY_ID}
     end
   end
 
@@ -93,7 +93,7 @@ Vagrant.configure("2") do |config|
     config.vm.define "worker#{i}" do |v1|
       v1.vm.hostname = "w#{i}"
       v1.vm.network "private_network", ip: BOUNDARY_WORKER_SERVER_IP_PREFIX+"#{i}", netmask:"255.255.0.0", :name => 'vboxnet1', :adapter => 2
-      v1.vm.provision "shell", path: "scripts/setupWorkerServer.sh", env: {'BOUNDARY_VER' => BOUNDARY_VER, 'HOST' => "v#{i}", 'AWS_REGION' => AWS_REGION, 'AWS_KEY_ID' => AWS_KEY_ID, 'AWS_SECRET' => AWS_SECRET, 'KMS_KEY_ID' => KMS_KEY_ID}
+      v1.vm.provision "shell", path: "scripts/setupWorkerServer.sh", env: {'BOUNDARY_VER' => BOUNDARY_VER, 'HOST' => "w#{i}", 'AWS_REGION' => AWS_REGION, 'AWS_KEY_ID' => AWS_KEY_ID, 'AWS_SECRET' => AWS_SECRET, 'KMS_KEY_ID' => KMS_KEY_ID}
     end
   end
 
